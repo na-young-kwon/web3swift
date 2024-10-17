@@ -23,7 +23,7 @@ public struct SECP256K1 {
 extension SECP256K1 {
   static let context = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN|SECP256K1_CONTEXT_VERIFY))
 
-  public static func testTest(ephemeralPublicKey: [UInt8], clientKeyMaterial: [UInt8], serverKeyMaterial: [UInt8], privateKey: [UInt8]) -> [UInt8] {
+  public static func testTest(ephemeralPublicKey: [UInt8], clientKeyMaterial: [UInt8], serverKeyMaterial: [UInt8], privateKey: [UInt8]) -> String? {
     // secp256k1 컨텍스트 생성
     let ctx = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN))!
 
@@ -38,14 +38,14 @@ extension SECP256K1 {
 
     guard result == 1 else {
       print("public key 만들기 실패")
-      return []
+      return nil
     }
 
     let ecdhResult = secp256k1_ecdh(ctx, &sharedSecret, &publicKey, privateKey)
 
     guard ecdhResult == 1 else {
       print("shared secret 만들기 실패")
-      return []
+      return nil
     }
 
     // hex 문자열로 변환
@@ -61,32 +61,7 @@ extension SECP256K1 {
       }
     }
 
-    // 모든 키 결합
-    let allKeyMaterials = fromHexString(sharedKeyHex)! + clientKeyMaterial + serverKeyMaterial
-
-    // SHA384 해시 계산
-    let sha384Hash = SHA384.hash(data: Data(allKeyMaterials))
-    return Array(sha384Hash)
-  }
-
-  internal func fromHexString(_ hexString: String) -> Data? {
-    var data = Data()
-    var hex = hexString
-
-    if hex.count % 2 != 0 {
-      hex = "0" + hex
-    }
-    for i in stride(from: 0, to: hex.count, by: 2) {
-      let start = hex.index(hex.startIndex, offsetBy: i)
-      let end = hex.index(start, offsetBy: 2)
-      let bytes = hex[start..<end]
-      if let byte = UInt8(bytes, radix: 16) {
-        data.append(byte)
-      } else {
-        return nil
-      }
-    }
-    return data
+    return sharedKeyHex
   }
 
     public static func signForRecovery(hash: Data, privateKey: Data, useExtraEntropy: Bool = false) -> (serializedSignature: Data?, rawSignature: Data?) {
