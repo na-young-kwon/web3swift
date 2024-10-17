@@ -588,6 +588,56 @@ int secp256k1_ec_pubkey_combine(const secp256k1_context* ctx, secp256k1_pubkey *
     return 1;
 }
 
+int secp256k1_ecdh(const secp256k1_context* ctx, unsigned char *result, const secp256k1_pubkey *point, const unsigned char *scalar) {
+    secp256k1_gej res;
+    secp256k1_ge pt;
+    secp256k1_scalar s;
+    int ret = 0;
+    int overflow = 0;
+
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(result != NULL);
+    ARG_CHECK(point != NULL);
+    ARG_CHECK(scalar != NULL);
+
+    // 공개 키를 로드
+    secp256k1_pubkey_load(ctx, &pt, point);
+
+    // 스칼라(비공개 키)를 설정
+    secp256k1_scalar_set_b32(&s, scalar, &overflow);
+
+    // 스칼라가 올바르지 않으면 종료
+    if (overflow || secp256k1_scalar_is_zero(&s)) {
+        ret = 0; // 실패
+    } else {
+        unsigned char x[32];
+        unsigned char y[1];
+        secp256k1_sha256 sha;
+
+        // ECDH 연산 수행
+        secp256k1_ecmult_const(&res, &pt, &s, 256);
+        secp256k1_ge_set_gej(&pt, &res);
+
+        // 포인트의 압축 형식 해시 계산
+        secp256k1_fe_normalize(&pt.x);
+        secp256k1_fe_normalize(&pt.y);
+        secp256k1_fe_get_b32(x, &pt.x);
+        y[0] = 0x02 | secp256k1_fe_is_odd(&pt.y);
+
+        // SHA256 해시 계산
+        secp256k1_sha256_initialize(&sha);
+        secp256k1_sha256_write(&sha, y, sizeof(y));
+        secp256k1_sha256_write(&sha, x, sizeof(x));
+        secp256k1_sha256_finalize(&sha, result);
+
+        ret = 1; // 성공
+    }
+
+    secp256k1_scalar_clear(&s); // 자원 해제
+    return ret; // 결과 반환
+}
+
+
 #ifdef ENABLE_MODULE_ECDH
 # include "ecdh_impl.h"
 #endif
