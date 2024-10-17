@@ -41,7 +41,7 @@ extension SECP256K1 {
       return nil
     }
 
-    let ecdhResult = secp256k1_ecdh(ctx, &sharedSecret, &publicKey, privateKey)
+    let ecdhResult = secp256k1_ecdh_impl(ctx, &sharedSecret, &publicKey, privateKey)
 
     guard ecdhResult == 1 else {
       print("shared secret 만들기 실패")

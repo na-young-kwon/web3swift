@@ -588,7 +588,7 @@ int secp256k1_ec_pubkey_combine(const secp256k1_context* ctx, secp256k1_pubkey *
     return 1;
 }
 
-int secp256k1_ecdh(const secp256k1_context* ctx, unsigned char *result, const secp256k1_pubkey *point, const unsigned char *scalar) {
+int secp256k1_ecdh_impl(const secp256k1_context* ctx, unsigned char *result, const secp256k1_pubkey *point, const unsigned char *scalar) {
     // 입력 매개변수의 유효성을 검사
     if (ctx == NULL || result == NULL || point == NULL || scalar == NULL) {
         return 0; // 유효하지 않은 매개변수
