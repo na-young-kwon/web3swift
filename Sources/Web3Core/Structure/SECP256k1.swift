@@ -21,7 +21,73 @@ public struct SECP256K1 {
 }
 
 extension SECP256K1 {
-    static let context = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN|SECP256K1_CONTEXT_VERIFY))
+  static let context = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN|SECP256K1_CONTEXT_VERIFY))
+
+  public static func testTest(ephemeralPublicKey: [UInt8], clientKeyMaterial: [UInt8], serverKeyMaterial: [UInt8], privateKey: [UInt8]) -> [UInt8] {
+    // secp256k1 컨텍스트 생성
+    let ctx = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN))!
+
+    // 공유 비밀을 저장할 배열
+    var sharedSecret = [UInt8](repeating: 0, count: 32) // 32 bytes
+
+    // 공개 키 파싱
+    var publicKey = secp256k1_pubkey()
+
+    let result = secp256k1_ec_pubkey_parse(ctx, &publicKey, ephemeralPublicKey, ephemeralPublicKey.count)
+
+
+    guard result == 1 else {
+      print("public key 만들기 실패")
+      return []
+    }
+
+    let ecdhResult = secp256k1_ecdh(ctx, &sharedSecret, &publicKey, privateKey)
+
+    guard ecdhResult == 1 else {
+      print("shared secret 만들기 실패")
+      return []
+    }
+
+    // hex 문자열로 변환
+    var sharedKeyHex = sharedSecret.map { String(format: "%02x", $0) }.joined()
+
+    // 0 제거
+    while sharedKeyHex.hasPrefix("00") && sharedKeyHex.count > 2 {
+      let nextByte = Int(sharedKeyHex[sharedKeyHex.index(sharedKeyHex.startIndex, offsetBy: 2)...sharedKeyHex.index(sharedKeyHex.startIndex, offsetBy: 3)])
+      if let nextByteValue = nextByte, nextByteValue < 128 {
+        sharedKeyHex.removeFirst(2)
+      } else {
+        break
+      }
+    }
+
+    // 모든 키 결합
+    let allKeyMaterials = fromHexString(sharedKeyHex)! + clientKeyMaterial + serverKeyMaterial
+
+    // SHA384 해시 계산
+    let sha384Hash = SHA384.hash(data: Data(allKeyMaterials))
+    return Array(sha384Hash)
+  }
+
+  internal func fromHexString(_ hexString: String) -> Data? {
+    var data = Data()
+    var hex = hexString
+
+    if hex.count % 2 != 0 {
+      hex = "0" + hex
+    }
+    for i in stride(from: 0, to: hex.count, by: 2) {
+      let start = hex.index(hex.startIndex, offsetBy: i)
+      let end = hex.index(start, offsetBy: 2)
+      let bytes = hex[start..<end]
+      if let byte = UInt8(bytes, radix: 16) {
+        data.append(byte)
+      } else {
+        return nil
+      }
+    }
+    return data
+  }
 
     public static func signForRecovery(hash: Data, privateKey: Data, useExtraEntropy: Bool = false) -> (serializedSignature: Data?, rawSignature: Data?) {
         if hash.count != 32 || privateKey.count != 32 { return (nil, nil) }
