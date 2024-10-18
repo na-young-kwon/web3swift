@@ -23,47 +23,6 @@ public struct SECP256K1 {
 extension SECP256K1 {
   static let context = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN|SECP256K1_CONTEXT_VERIFY))
 
-  public static func testTest(ephemeralPublicKey: [UInt8], clientKeyMaterial: [UInt8], serverKeyMaterial: [UInt8], privateKey: [UInt8]) -> String? {
-    // secp256k1 컨텍스트 생성
-    let ctx = secp256k1_context_create(UInt32(SECP256K1_CONTEXT_SIGN))!
-
-    // 공유 비밀을 저장할 배열
-    var sharedSecret = [UInt8](repeating: 0, count: 32) // 32 bytes
-
-    // 공개 키 파싱
-    var publicKey = secp256k1_pubkey()
-
-    let result = secp256k1_ec_pubkey_parse(ctx, &publicKey, ephemeralPublicKey, ephemeralPublicKey.count)
-
-
-    guard result == 1 else {
-      print("public key 만들기 실패")
-      return nil
-    }
-
-    let ecdhResult = secp256k1_ecdh_impl(ctx, &sharedSecret, &publicKey, privateKey)
-
-    guard ecdhResult == 1 else {
-      print("shared secret 만들기 실패")
-      return nil
-    }
-
-    // hex 문자열로 변환
-    var sharedKeyHex = sharedSecret.map { String(format: "%02x", $0) }.joined()
-
-    // 0 제거
-    while sharedKeyHex.hasPrefix("00") && sharedKeyHex.count > 2 {
-      let nextByte = Int(sharedKeyHex[sharedKeyHex.index(sharedKeyHex.startIndex, offsetBy: 2)...sharedKeyHex.index(sharedKeyHex.startIndex, offsetBy: 3)])
-      if let nextByteValue = nextByte, nextByteValue < 128 {
-        sharedKeyHex.removeFirst(2)
-      } else {
-        break
-      }
-    }
-
-    return sharedKeyHex
-  }
-
     public static func signForRecovery(hash: Data, privateKey: Data, useExtraEntropy: Bool = false) -> (serializedSignature: Data?, rawSignature: Data?) {
         if hash.count != 32 || privateKey.count != 32 { return (nil, nil) }
         if !SECP256K1.verifyPrivateKey(privateKey: privateKey) {
